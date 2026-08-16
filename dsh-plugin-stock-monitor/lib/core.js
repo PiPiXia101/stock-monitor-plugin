@@ -8,11 +8,27 @@
 'use strict';
 
 import { readFileSync, existsSync } from 'node:fs';
+import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
 const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
+
+/** 用 curl 子进程抓取（东财接口对 Node fetch/Python urllib 返回不同内容，curl 稳定）。 */
+function curlFetch(url) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      '/usr/bin/curl',
+      ['-s', '--max-time', '15', url, '-H', `User-Agent: ${UA}`],
+      { maxBuffer: 8 * 1024 * 1024 },
+      (err, stdout) => {
+        if (err) return reject(new Error(`curl 请求失败: ${err.message}`));
+        resolve(stdout);
+      }
+    );
+  });
+}
 
 // ============================================================
 // 契约函数（与测试代码行为一致）
@@ -136,9 +152,7 @@ export function buildQAContext(code, name, items, analysis) {
 // ============================================================
 
 async function emFetch(url) {
-  const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`东方财富接口 HTTP ${res.status}`);
-  const text = await res.text();
+  const text = await curlFetch(url);
   // 剥离 jsonp 包装：cb({...}) 或 jQueryxxx({...})
   const start = text.indexOf('(');
   const end = text.lastIndexOf(')');
