@@ -1,0 +1,23 @@
+{
+  "name": "dsh-plugin-stock-monitor",
+  "version": "0.1.0",
+  "description": "股票监控插件：自选股新闻抓取 + AI 分析 + 面板提问（服务端 cordis 插件 + 客户端侧边栏入口）",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "platform": "web"
+    }
+  },
+  "private": true
+}

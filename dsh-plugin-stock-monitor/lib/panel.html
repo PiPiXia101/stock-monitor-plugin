@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>股票监控 · DSH 插件</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --border: #e2e5ea; --text: #1f2329;
+    --text-2: #646a73; --accent: #2563eb; --accent-weak: #eaf0fe;
+    --good: #16a34a; --good-weak: #e8f7ee; --bad: #dc2626; --bad-weak: #fdecec;
+    --neutral: #6b7280; --neutral-weak: #f1f2f4; --new: #fef3c7; --new-border: #f59e0b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181c; --card: #202127; --border: #32343c; --text: #e8e9ec;
+      --text-2: #9a9fa8; --accent: #5b8def; --accent-weak: #263452;
+      --good: #4ade80; --good-weak: #1c3324; --bad: #f87171; --bad-weak: #3b2222;
+      --neutral: #9ca3af; --neutral-weak: #2c2e35; --new: #3d3320; --new-border: #b45309;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--text-2); font-size: 12px; margin-bottom: 16px; }
+  .addbar { display: flex; gap: 8px; margin-bottom: 20px; }
+  .addbar input { flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); font-size: 14px; }
+  .addbar input:focus { outline: 2px solid var(--accent-weak); border-color: var(--accent); }
+  button { border: none; cursor: pointer; font: inherit; border-radius: 10px; padding: 9px 14px; background: var(--accent); color: #fff; }
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
+  button.danger { background: var(--bad-weak); color: var(--bad); }
+  button.small { padding: 4px 10px; font-size: 12px; border-radius: 8px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .stock-name { font-size: 16px; font-weight: 600; }
+  .stock-code { color: var(--text-2); font-family: ui-monospace, monospace; font-size: 13px; }
+  .spacer { flex: 1; }
+  .meta { color: var(--text-2); font-size: 12px; margin-bottom: 10px; }
+  .badge-new { background: var(--new); color: var(--new-border); border: 1px solid var(--new-border); border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 600; }
+  .news-item { padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid transparent; }
+  .news-item.new { background: var(--new); border-color: var(--new-border); }
+  .news-title { font-weight: 500; color: var(--text); text-decoration: none; display: block; }
+  .news-title:hover { color: var(--accent); }
+  .news-meta { color: var(--text-2); font-size: 12px; margin-top: 2px; }
+  .news-type { font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; color: var(--text-2); margin-right: 6px; }
+  .empty { color: var(--text-2); text-align: center; padding: 24px 0; }
+  .analysis { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 12px; }
+  .conclusion { display: inline-block; border-radius: 999px; padding: 3px 14px; font-weight: 600; font-size: 13px; margin-right: 8px; }
+  .conclusion.good { background: var(--good-weak); color: var(--good); }
+  .conclusion.bad { background: var(--bad-weak); color: var(--bad); }
+  .conclusion.mid { background: var(--neutral-weak); color: var(--neutral); }
+  .points { margin: 8px 0 0; padding-left: 20px; color: var(--text); }
+  .disclaimer { color: var(--text-2); font-size: 11px; margin-top: 8px; }
+  .askbar { display: flex; gap: 8px; margin-top: 10px; }
+  .askbar input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); }
+  .answer { margin-top: 8px; padding: 10px 12px; background: var(--accent-weak); border-radius: 10px; white-space: pre-wrap; font-size: 13px; }
+  .error-line { color: var(--bad); font-size: 12px; margin-top: 6px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 99; max-width: 80vw; }
+  .toast.show { opacity: .95; }
+  .refresh-btn { display: inline-flex; align-items: center; gap: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📈 股票监控</h1>
+  <div class="sub">A 股 / ETF 新闻监控 · AI 分析 · 每 5 分钟自动刷新 · 新新闻高亮提示</div>
+
+  <div class="addbar">
+    <input id="code-input" placeholder="输入 6 位 A 股代码，如 600519 / 510300" maxlength="6" inputmode="numeric">
+    <button id="add-btn">添加</button>
+  </div>
+
+  <div id="list"></div>
+  <div id="empty" class="empty" style="display:none">还没有自选股，在上方输入代码添加。</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const API = '/api/stock';
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+async function j(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({ ok: false, reason: '响应解析失败' }));
+  if (!res.ok || data.ok === false) throw new Error(data.reason || `HTTP ${res.status}`);
+  return data;
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function conclusionClass(c) {
+  if (c === '偏利好') return 'good';
+  if (c === '偏利空') return 'bad';
+  return 'mid';
+}
+
+function renderStock(s) {
+  const snap = s.snapshot || {};
+  const items = snap.items || [];
+  const newSet = new Set(snap.newIds || []);
+  const newsHtml = items.length
+    ? items.map((it) => `
+      <div class="news-item${newSet.has(it.id) ? ' new' : ''}">
+        <a class="news-title" href="${esc(it.url)}" target="_blank" rel="noopener">${newSet.has(it.id) ? '<span class="badge-new">新</span> ' : ''}${esc(it.title)}</a>
+        <div class="news-meta"><span class="news-type">${it.type === 'announcement' ? '公告' : '新闻'}</span>${esc(it.source)} · ${esc(it.time)}</div>
+      </div>`).join('')
+    : '<div class="empty">暂无新闻</div>';
+
+  const a = snap.analysis;
+  const analysisHtml = a ? `
+    <div class="analysis">
+      <span class="conclusion ${conclusionClass(a.conclusion)}">${esc(a.conclusion)}</span>
+      ${a.points && a.points.length ? `<ul class="points">${a.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+      <div class="disclaimer">⚠️ AI 分析仅供参考，不构成投资建议。</div>
+    </div>` : '';
+
+  const errHtml = snap.error ? `<div class="error-line">${esc(snap.error)}</div>` : '';
+
+  return `
+  <div class="card" data-code="${esc(s.code)}">
+    <div class="card-head">
+      <span class="stock-name">${esc(s.name || s.code)}</span>
+      <span class="stock-code">${esc(s.code)}</span>
+      <span class="spacer"></span>
+      <button class="ghost small refresh-btn" data-act="refresh">↻ 刷新</button>
+      <button class="ghost small" data-act="analyze">🤖 AI 分析</button>
+      <button class="danger small" data-act="remove">删除</button>
+    </div>
+    <div class="meta">${snap.refreshedAt ? '上次刷新：' + esc(snap.refreshedAt.replace('T', ' ').slice(0, 19)) : '尚未刷新'}</div>
+    ${errHtml}
+    <div class="news-list">${newsHtml}</div>
+    ${analysisHtml}
+    <div class="askbar">
+      <input placeholder="结合新闻向 AI 提问，如：这些消息对股价是利好还是利空？" data-act="ask-input">
+      <button class="small" data-act="ask">提问</button>
+    </div>
+    <div class="answer" data-act="answer" style="display:none"></div>
+  </div>`;
+}
+
+async function loadList() {
+  try {
+    const data = await j('GET', API + '/watchlist');
+    const list = document.getElementById('list');
+    const empty = document.getElementById('empty');
+    empty.style.display = data.stocks.length ? 'none' : 'block';
+    list.innerHTML = data.stocks.map(renderStock).join('');
+  } catch (e) {
+    toast('加载失败：' + e.message);
+  }
+}
+
+async function addStock() {
+  const input = document.getElementById('code-input');
+  const code = input.value.trim();
+  if (!/^\d{6}$/.test(code)) { toast('请输入 6 位数字的 A 股代码'); return; }
+  try {
+    await j('POST', API + '/watchlist', { code });
+    input.value = '';
+    await loadList();
+    toast('已添加 ' + code);
+  } catch (e) {
+    toast('添加失败：' + e.message);
+  }
+}
+
+async function doAction(code, act, extra) {
+  try {
+    if (act === 'refresh') {
+      await j('POST', API + '/refresh', { code });
+      await loadList();
+      toast('已刷新');
+    } else if (act === 'analyze') {
+      const btn = document.querySelector(`.card[data-code="${code}"] [data-act="analyze"]`);
+      if (btn) { btn.disabled = true; btn.textContent = '分析中…'; }
+      await j('POST', API + '/analyze', { code });
+      await loadList();
+      toast('分析完成');
+    } else if (act === 'remove') {
+      if (!confirm('确认删除自选股 ' + code + '？')) return;
+      await j('DELETE', API + '/watchlist?code=' + encodeURIComponent(code));
+      await loadList();
+      toast('已删除 ' + code);
+    } else if (act === 'ask') {
+      const question = extra;
+      const card = document.querySelector(`.card[data-code="${code}"]`);
+      const answerEl = card.querySelector('[data-act="answer"]');
+      answerEl.style.display = 'block';
+      answerEl.textContent = '思考中…';
+      const d = await j('POST', API + '/ask', { code, question });
+      answerEl.textContent = d.answer || '（无回答）';
+    }
+  } catch (e) {
+    toast('操作失败：' + e.message);
+  }
+}
+
+document.getElementById('add-btn').addEventListener('click', addStock);
+document.getElementById('code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addStock(); });
+
+document.getElementById('list').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const card = btn.closest('.card');
+  if (!card) return;
+  const code = card.dataset.code;
+  const act = btn.dataset.act;
+  if (act !== 'ask' && act !== 'ask-input') doAction(code, act);
+});
+document.getElementById('list').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const input = e.target.closest('[data-act="ask-input"]');
+  if (!input) return;
+  const card = input.closest('.card');
+  const code = card.dataset.code;
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  doAction(code, 'ask', q);
+});
+
+loadList();
+setInterval(loadList, 60 * 1000); // 面板轮询（服务端每 5 分钟抓取，此处同步展示）
+</script>
+</body>
+</html>
