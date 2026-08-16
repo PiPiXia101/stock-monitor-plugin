@@ -75,6 +75,7 @@ window.__ModuleLoader__.load({
     }
 
     exports.apply = apply;
+    exports.inject = ["slots"];
     return module.exports;
   },
 });
