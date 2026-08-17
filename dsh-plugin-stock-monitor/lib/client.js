@@ -17,19 +17,19 @@ window.__ModuleLoader__.load({
     let primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 
     /**
-     * 侧边栏底部入口按钮。
-     * props 由 slot 系统注入（此处无特殊依赖）。
+     * 侧边栏底部入口。
+     * 用原生 <a> 链接（target=_blank）而非 button+window.open：
+     * window.open 会被浏览器弹窗拦截导致点击无反应；链接导航是原生行为，不被拦截。
      */
     function StockMonitorEntry(props) {
       return react.createElement(
-        "button",
+        "a",
         {
-          type: "button",
+          href: "/stock-monitor/",
+          target: "_blank",
+          rel: "noopener",
           "aria-label": "股票监控",
           title: "打开股票监控面板（新标签页）",
-          onClick: () => {
-            window.open("/stock-monitor/", "_blank", "noopener");
-          },
           style: {
             width: "100%",
             height: 36,
@@ -46,6 +46,7 @@ window.__ModuleLoader__.load({
             gap: 6,
             padding: "0 8px",
             flex: "none",
+            textDecoration: "none",
           },
           onMouseEnter: (e) => {
             e.currentTarget.style.background = "var(--dsw-alias-interactive-bg-hover, #eef0f3)";
